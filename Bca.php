@@ -1,5 +1,7 @@
 <?php
 
+date_default_timezone_set('Asia/Jakarta');
+
 class Bca
 {
     private static $main_url = 'https://sandbox.bca.co.id'; // Change When Your Apps is Live
@@ -12,6 +14,7 @@ class Bca
     private static $timestamp = null;
     private static $corporate_id = 'BCAAPI2016'; // Fill With Your Corporate ID. BCAAPI2016 is Sandbox ID
     private static $account_number = '0201245680'; // Fill With Your Account Number. 0201245680 is Sandbox Account
+    private static $server_name = 'https://sandbox.bca.co.id'; // Fill With Your Valid Server Name
 
     private function getToken()
     {
@@ -39,6 +42,14 @@ class Bca
         // var_dump(self::$access_token);
     }
 
+    public function dump($param)
+    {
+        echo '<pre>';
+        print_r($param);
+        echo '</pre>';
+        die();
+    }
+
     private function parseSignature($res)
     {
         $explode_response = explode(',', $res);
@@ -61,14 +72,14 @@ class Bca
         $timestamp = substr($timestamp, 0, (strlen($timestamp) - 2));
         $timestamp .= ':00';
         $url_encode = $url;
-        $headers = array(
+        $headers = [
             'Timestamp: ' . $timestamp,
             'URI: ' . $url_encode,
             'AccessToken: ' . self::$access_token,
             'APISecret: ' . self::$api_secret,
             'HTTPMethod: ' . $method,
             'Content-Type: application/json',
-        );
+        ];
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, self::$main_url . $path);
@@ -81,9 +92,9 @@ class Bca
         ]);
         $output = curl_exec($ch);
         curl_close($ch);
+        $this->dump($output);
         $this->parseSignature($output);
         $this->parseTimestamp($output);
-        var_dump(self::$signature);
     }
 
     public function BalanceInformation()
@@ -96,8 +107,25 @@ class Bca
         $this->getSignature($path, $method, $data);
 
         $headers = [
-            'Authorization:' . self::$access_token,
+            'Authorization: Bearer ' . self::$access_token,
+            'Content-Type: application/json',
+            'Origin: ' . self::$server_name,
+            'X-BCA-Key: ' . self::$api_key,
+            'X-BCA-Timestamp: ' . self::$timestamp,
+            'X-BCA-Signature: ' . self::$signature,
         ];
 
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::$main_url . $path);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Ignore Verify SSL Certificate
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers,
+        ]);
+
+        $output = curl_exec($ch); // This is API Response
+        curl_close($ch);
+        echo $output;
     }
 }
