@@ -1,8 +1,13 @@
 <?php
 
-// date_default_timezone_set('Asia/Jakarta');
+/*
+ * 2017 - API BCA Simple PHP Class
+ * Using Account Statements for Sample Request
+ *
+ * Contact : rie.projects25@gmail.com
+ */
 
-class Bca
+class Anotherbca
 {
     private static $main_url = 'https://sandbox.bca.co.id'; // Change When Your Apps is Live
     private static $client_id = 'fa476214-c010-4930-8908-9a42a5ccc463'; // Fill With Your Client ID
@@ -14,11 +19,11 @@ class Bca
     private static $timestamp = null;
     private static $corporate_id = 'BCAAPI2016'; // Fill With Your Corporate ID. BCAAPI2016 is Sandbox ID
     private static $account_number = '0201245680'; // Fill With Your Account Number. 0201245680 is Sandbox Account
-    private static $server_name = 'https://sandbox.bca.co.id'; // Fill With Your Valid Server Name
 
     private function getToken()
     {
         $path = '/api/oauth/token';
+
         $headers = array(
             'Content-Type: application/x-www-form-urlencoded',
             'Authorization: Basic ' . base64_encode(self::$client_id . ':' . self::$client_secret));
@@ -28,104 +33,96 @@ class Bca
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, self::$main_url . $path);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Ignore Verify SSL Certificate
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, array(
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_POSTFIELDS => http_build_query($data),
-        ]);
+        ));
         $output = curl_exec($ch);
         curl_close($ch);
 
         $result = json_decode($output, true);
         self::$access_token = $result['access_token'];
-        // var_dump(self::$access_token);
     }
-
-    public function dump($param)
-    {
-        echo '<pre>';
-        print_r($param);
-        echo '</pre>';
-        die();
-    }
-
     private function parseSignature($res)
     {
         $explode_response = explode(',', $res);
         $explode_response_1 = explode(':', $explode_response[8]);
+
         self::$signature = trim($explode_response_1[1]);
     }
-
     private function parseTimestamp($res)
     {
         $explode_response = explode(',', $res);
         $explode_response_1 = explode('Timestamp: ', $explode_response[3]);
-        self::$timestamp = trim($explode_response_1[1]);
-        // $this->dump($explode_response_1[1]);
-    }
 
+        self::$timestamp = trim($explode_response_1[1]);
+    }
     private function getSignature($url, $method, $data)
     {
         $path = '/utilities/signature';
+
         $timestamp = date(DateTime::ISO8601);
         $timestamp = str_replace('+', '.000+', $timestamp);
         $timestamp = substr($timestamp, 0, (strlen($timestamp) - 2));
         $timestamp .= ':00';
         $url_encode = $url;
-        $headers = [
+
+        $headers = array(
             'Timestamp: ' . $timestamp,
             'URI: ' . $url_encode,
             'AccessToken: ' . self::$access_token,
             'APISecret: ' . self::$api_secret,
             'HTTPMethod: ' . $method,
-        ];
+        );
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, self::$main_url . $path);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Ignore Verify SSL Certificate
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, array(
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_POSTFIELDS => http_build_query($data),
-        ]);
+        ));
         $output = curl_exec($ch);
         curl_close($ch);
+
         $this->parseSignature($output);
         $this->parseTimestamp($output);
     }
-
-    public function BalanceInformation()
+    public function index()
     {
-        $path = '/banking/v2/corporates/' . self::$corporate_id . '/accounts/' . self::$account_number;
-        $method = 'GET';
-        $data = [];
-
         $this->getToken();
+
+        // Change this path to your desired API Services Path
+        $path = '/banking/corporates/' . self::$corporate_id . '/accounts/' . self::$account_number . '/statements?StartDate=2016-09-01&EndDate=2016-09-01';
+        $method = 'GET';
+        $data = array();
+
         $this->getSignature($path, $method, $data);
 
-        $headers = [
-            'Authorization: Bearer ' . self::$access_token,
-            'Content-Type: application/json',
-            'Origin: ' . self::$server_name,
+        $headers = array(
             'X-BCA-Key: ' . self::$api_key,
             'X-BCA-Timestamp: ' . self::$timestamp,
+            'Authorization: Bearer ' . self::$access_token,
             'X-BCA-Signature: ' . self::$signature,
-        ];
-
+            'Content-Type: application/json',
+            'Origin: ' . $_SERVER['SERVER_NAME'],
+        );
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, self::$main_url . $path);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Ignore Verify SSL Certificate
-
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, array(
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $headers,
-        ]);
-
+        ));
         $output = curl_exec($ch); // This is API Response
-        $this->dump($output);
         curl_close($ch);
+        var_dump($output);
+        die();
+
         echo $output;
     }
 }
